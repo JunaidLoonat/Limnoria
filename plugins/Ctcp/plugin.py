@@ -77,7 +77,7 @@ class Ctcp(callbacks.PluginRegexp):
 
     def _reply(self, irc, msg, s):
         s = '\x01%s\x01' % s
-        irc.reply(s, notice=True, private=True, to=msg.nick)
+        irc.reply(s, notice=True, private=True, to=msg.nick, stripCtcp=False)
 
     def ctcpPing(self, irc, msg, match):
         "^\x01PING(?: (.+))?\x01$"
@@ -91,7 +91,7 @@ class Ctcp(callbacks.PluginRegexp):
     def ctcpVersion(self, irc, msg, match):
         "^\x01VERSION\x01$"
         self.log.info('Received CTCP VERSION from %s', msg.prefix)
-        self._reply(irc, msg, 'VERSION Supybot %s' % conf.version)
+        self._reply(irc, msg, 'VERSION Limnoria %s' % conf.version)
 
     def ctcpUserinfo(self, irc, msg, match):
         "^\x01USERINFO\x01$"

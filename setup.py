@@ -180,7 +180,7 @@ setup(
     author='Valentin Lorentz',
     url='https://github.com/ProgVal/Limnoria',
     author_email='progval+limnoria@progval.net',
-    download_url='http://builds.progval.net/limnoria/',
+    download_url='https://builds.progval.net/limnoria/',
     description='A modified version of Supybot (an IRC bot and framework)',
     platforms=['linux', 'linux2', 'win32', 'cygwin', 'darwin'],
     long_description=normalizeWhitespace("""A robust, full-featured Python IRC
@@ -209,6 +209,7 @@ setup(
         'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
         'Topic :: Communications :: Chat :: Internet Relay Chat',
         'Topic :: Software Development :: Libraries :: Python Modules',
         ],

@@ -157,7 +157,8 @@ def canonicalName(command, preserve_spaces=False):
     return ''.join([x for x in command if x not in special]).lower() + reAppend
 
 def reply(msg, s, prefixNick=None, private=None,
-          notice=None, to=None, action=None, error=False):
+          notice=None, to=None, action=None, error=False,
+          stripCtcp=True):
     msg.tag('repliedTo')
     # Ok, let's make the target:
     # XXX This isn't entirely right.  Consider to=#foo, private=True.
@@ -188,6 +189,8 @@ def reply(msg, s, prefixNick=None, private=None,
         prefixNick = False
     if to is None:
         to = msg.nick
+    if stripCtcp:
+        s = s.strip('\x01')
     # Ok, now let's make the payload:
     s = ircutils.safeArgument(s)
     if not s and not action:
@@ -450,8 +453,20 @@ class RichReplyMethods(object):
         s = self.__makeReply(v, s)
         return self.reply(s, **kwargs)
 
+    def _getTarget(self, to=None):
+        """Compute the target according to self.to, the provided to,
+        and self.private, and return it. Mainly used by reply methods."""
+        # FIXME: Don't set self.to.
+        # I still set it to be sure I don't introduce a regression,
+        # but it does not make sense for .reply() and .replies() to
+        # change the state of this Irc object.
+        if to is not None:
+            self.to = self.to or to
+        target = self.private and self.to or self.msg.args[0]
+        return target
+
     def replies(self, L, prefixer=None, joiner=None,
-                onlyPrefixFirst=False, to=None,
+                onlyPrefixFirst=False,
                 oneToOne=None, **kwargs):
         if prefixer is None:
             prefixer = ''
@@ -461,13 +476,14 @@ class RichReplyMethods(object):
             prefixer = prefixer.__add__
         if isinstance(joiner, minisix.string_types):
             joiner = joiner.join
+        to = self._getTarget(kwargs.get('to'))
         if oneToOne is None: # Can be True, False, or None
             if ircutils.isChannel(to):
                 oneToOne = conf.get(conf.supybot.reply.oneToOne, to)
             else:
                 oneToOne = conf.supybot.reply.oneToOne()
         if oneToOne:
-            return self.reply(prefixer(joiner(L)), to=to, **kwargs)
+            return self.reply(prefixer(joiner(L)), **kwargs)
         else:
             msg = None
             first = True
@@ -475,11 +491,11 @@ class RichReplyMethods(object):
                 if onlyPrefixFirst:
                     if first:
                         first = False
-                        msg = self.reply(prefixer(s), to=to, **kwargs)
+                        msg = self.reply(prefixer(s), **kwargs)
                     else:
-                        msg = self.reply(s, to=to, **kwargs)
+                        msg = self.reply(s, **kwargs)
                 else:
-                    msg = self.reply(prefixer(s), to=to, **kwargs)
+                    msg = self.reply(prefixer(s), **kwargs)
             return msg
 
     def noReply(self):
@@ -824,7 +840,8 @@ class NestedCommandsIrcProxy(ReplyIrcProxy):
                 cb._callCommand(command, self, self.msg, args)
 
     def reply(self, s, noLengthCheck=False, prefixNick=None, action=None,
-              private=None, notice=None, to=None, msg=None, sendImmediately=False):
+              private=None, notice=None, to=None, msg=None,
+              sendImmediately=False, stripCtcp=True):
         """
         Keyword arguments:
 
@@ -864,11 +881,9 @@ class NestedCommandsIrcProxy(ReplyIrcProxy):
             self.notice = self.notice or notice
         if private is not None:
             self.private = self.private or private
-        if to is not None:
-            self.to = self.to or to
+        target = self._getTarget(to)
         # action=True implies noLengthCheck=True and prefixNick=False
         self.noLengthCheck=noLengthCheck or self.noLengthCheck or self.action
-        target = self.private and self.to or self.msg.args[0]
         if not isinstance(s, minisix.string_types): # avoid trying to str() unicode
             s = str(s) # Allow non-string esses.
         if self.finalEvaled:
@@ -880,7 +895,8 @@ class NestedCommandsIrcProxy(ReplyIrcProxy):
                                           action=self.action,
                                           private=self.private,
                                           prefixNick=self.prefixNick,
-                                          noLengthCheck=self.noLengthCheck)
+                                          noLengthCheck=self.noLengthCheck,
+                                          stripCtcp=stripCtcp)
                 elif self.noLengthCheck:
                     # noLengthCheck only matters to NestedCommandsIrcProxy, so
                     # it's not used here.  Just in case you were wondering.
@@ -888,7 +904,8 @@ class NestedCommandsIrcProxy(ReplyIrcProxy):
                               notice=self.notice,
                               action=self.action,
                               private=self.private,
-                              prefixNick=self.prefixNick)
+                              prefixNick=self.prefixNick,
+                              stripCtcp=stripCtcp)
                     sendMsg(m)
                     return m
                 else:
@@ -917,11 +934,11 @@ class NestedCommandsIrcProxy(ReplyIrcProxy):
                         # "(XX more messages)" trailer.
                         if minisix.PY3:
                             appended = _('(XX more messages)').encode()
-                            s = s.encode()[:allowedLength+len(appended)]
+                            s = s.encode()[:allowedLength-len(appended)]
                             s = s.decode('utf8', 'ignore')
                         else:
                             appended = _('(XX more messages)')
-                            s = s[:allowedLength+len(appended)]
+                            s = s[:allowedLength-len(appended)]
                         # There's no need for action=self.action here because
                         # action implies noLengthCheck, which has already been
                         # handled.  Let's stick an assert in here just in case.
@@ -929,7 +946,8 @@ class NestedCommandsIrcProxy(ReplyIrcProxy):
                         m = reply(msg, s, to=self.to,
                                   notice=self.notice,
                                   private=self.private,
-                                  prefixNick=self.prefixNick)
+                                  prefixNick=self.prefixNick,
+                                  stripCtcp=stripCtcp)
                         sendMsg(m)
                         return m
                     msgs = ircutils.wrap(s, allowedLength,
@@ -942,7 +960,8 @@ class NestedCommandsIrcProxy(ReplyIrcProxy):
                         m = reply(msg, response, to=self.to,
                                   notice=self.notice,
                                   private=self.private,
-                                  prefixNick=self.prefixNick)
+                                  prefixNick=self.prefixNick,
+                                  stripCtcp=stripCtcp)
                         sendMsg(m)
                         # XXX We should somehow allow these to be returned, but
                         #     until someone complains, we'll be fine :)  We
@@ -975,7 +994,8 @@ class NestedCommandsIrcProxy(ReplyIrcProxy):
                                             action=self.action,
                                             notice=self.notice,
                                             private=self.private,
-                                            prefixNick=self.prefixNick)
+                                            prefixNick=self.prefixNick,
+                                            stripCtcp=stripCtcp)
                     sendMsg(m)
                     return m
             finally:
@@ -997,7 +1017,9 @@ class NestedCommandsIrcProxy(ReplyIrcProxy):
         if not self.finalEvaled and oneToOne is None:
             oneToOne = True
         return super(NestedCommandsIrcProxy, self).replies(L,
-                prefixer, joiner, onlyPrefixFirst, to, oneToOne, **kwargs)
+                prefixer=prefixer, joiner=joiner,
+                onlyPrefixFirst=onlyPrefixFirst, to=to,
+                oneToOne=oneToOne, **kwargs)
 
     def error(self, s='', Raise=False, **kwargs):
         self.repliedTo = True

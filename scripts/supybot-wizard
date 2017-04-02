@@ -393,8 +393,8 @@ def main():
     output("""Most networks allow you to use a secure connection via SSL.
     If you are not sure whether this network supports SSL or not, check
     its website.""")
-    if yn('Do you want to use an SSL connection?', default=True):
-        network.ssl.setValue(True)
+    use_ssl = yn('Do you want to use an SSL connection?', default=True)
+    network.ssl.setValue(use_ssl)
 
     output("""IRC servers almost always accept connections on port
     6697 (or 6667 when not using SSL).  They can, however, accept connections
@@ -446,7 +446,7 @@ def main():
         output("""IRC servers also allow you to set your ident, which they
         might need if they can't find your identd server.  What would you like
         your ident to be?  If you don't care, press enter and we'll use
-        'supybot'.  In fact, we prefer that you do this, because it provides
+        'limnoria'.  In fact, we prefer that you do this, because it provides
         free advertising for Supybot when users /whois your bot.  But, of
         course, it's your call.""")
         while True:
@@ -694,6 +694,7 @@ def main():
     conf.registerPlugin('Channel', True)
     conf.registerPlugin('Config', True)
     conf.registerPlugin('Misc', True)
+    conf.registerPlugin('Network', True)
     conf.registerPlugin('NickAuth', True)
     conf.registerPlugin('User', True)
     conf.registerPlugin('Utilities', True)

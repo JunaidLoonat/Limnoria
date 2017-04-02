@@ -52,6 +52,11 @@ import supybot.callbacks as callbacks
 from supybot.i18n import PluginInternationalization, internationalizeDocstring
 _ = PluginInternationalization('RSS')
 
+if minisix.PY2:
+    from urllib2 import ProxyHandler
+else:
+    from urllib.request import ProxyHandler
+
 def get_feedName(irc, msg, args, state):
     if ircutils.isChannel(args[0]):
         state.errorInvalid('feed name', args[0], 'must not be channel names.')
@@ -289,9 +294,15 @@ class RSS(callbacks.Plugin):
     # Feed fetching
 
     def update_feed(self, feed):
+        handlers = []
+        if utils.web.proxy():
+            handlers.append(ProxyHandler(
+                {'http': utils.force(utils.web.proxy())}))
+            handlers.append(ProxyHandler(
+                {'https': utils.force(utils.web.proxy())}))
         with feed.lock:
             d = feedparser.parse(feed.url, etag=feed.etag,
-                    modified=feed.modified)
+                    modified=feed.modified, handlers=handlers)
             if 'status' not in d or d.status != 304: # Not modified
                 if 'etag' in d:
                     feed.etag = d.etag
@@ -373,6 +384,15 @@ class RSS(callbacks.Plugin):
     def should_send_entry(self, channel, entry):
         whitelist = self.registryValue('keywordWhitelist', channel)
         blacklist = self.registryValue('keywordBlacklist', channel)
+
+        # fix shadowing by "from supybot.commands import *"
+        try:
+            all = __builtins__.all
+            any = __builtins__.any
+        except AttributeError:
+            all = __builtins__['all']
+            any = __builtins__['any']
+
         if whitelist:
             if all(kw not in entry.title and kw not in entry.description
                    for kw in whitelist):
@@ -395,10 +415,10 @@ class RSS(callbacks.Plugin):
             template = self.registryValue(key_name, channel)
         date = entry.get('published_parsed')
         date = utils.str.timestamp(date)
-        s = string.Template(template).safe_substitute(
+        s = string.Template(template).substitute(
+                entry,
                 feed_name=feed.name,
-                date=date,
-                **entry)
+                date=date)
         return self._normalize_entry(s)
 
     def announce_entry(self, irc, channel, feed, entry):

@@ -16,7 +16,7 @@ Master branch: [![Build Status (master branch)](https://travis-ci.org/ProgVal/Li
 
 Testing branch: [![Build Status (testing branch)](https://travis-ci.org/ProgVal/Limnoria.png?branch=testing)](https://travis-ci.org/ProgVal/Limnoria)
 
-Limnoria supports CPython 2.6, 2.7, 3.2, 3.3, 3.4, 3.5, nightly;
+Limnoria supports CPython 2.6, 2.7, 3.2, 3.3, 3.4, 3.5, 3.6, nightly;
 and Pypy 2 and 3. It works best with CPython 3.4 and higher.
 Python 2.5 and older versions are not supported.
 
@@ -34,21 +34,23 @@ read it.
 
 ## Installing from cloned repo
 
-*If you don't want to clone the repo, please see the previous two
+*If you don't need to clone the repo, please see the previous two
 paragraphs for easier installation methods.*
 
 ```
 git clone https://github.com/ProgVal/Limnoria.git
-sudo pip install -r requirements.txt
-sudo python setup.py install
+cd Limnoria
+sudo python3 -m pip install -r requirements.txt
+sudo python3 setup.py install
 ```
 
 alternatively without root
 
 ```
 git clone https://github.com/ProgVal/Limnoria.git
-pip install -r requirements.txt --user
-python setup.py install --user
+cd Limnoria
+python3 -m pip install -r requirements.txt --user
+python3 setup.py install --user
 ```
 
 [doc.supybot.aperio.fr]:http://doc.supybot.aperio.fr/
